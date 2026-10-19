@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meri Photo Gallery</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --fg: #e8eaed;
+    --muted: #9aa0a6;
+    --card: #171a21;
+    --input: #1e222a;
+    --soft: #22262f;
+    --border: #2c313b;
+    --border-hover: #4b5563;
+    --primary: #3b82f6;
+    --error: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    padding: 22px 16px 40px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { width: 100%; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 21px; font-weight: 500; margin: 0 0 3px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .sub { font-size: 12px; color: var(--muted); }
+
+  .head { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+  .head-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .inp { background: var(--input); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-size: 13px; font-family: inherit; outline: none; }
+  .inp:focus { border-color: var(--border-hover); }
+  #search { width: 150px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--soft); color: var(--fg); border-radius: 8px; padding: 9px 13px; font-size: 13px; font-family: inherit; font-weight: 500; cursor: pointer; line-height: 1; }
+  .btn:hover { border-color: var(--border-hover); }
+  .btn.primary { background: var(--primary); color: #fff; border-color: transparent; }
+  .btn.ghost { background: transparent; }
+  .btn.danger { background: transparent; color: var(--error); }
+  .small-btn { padding: 6px 10px; font-size: 12px; }
+
+  .drop { border: 1px dashed var(--border); border-radius: 12px; padding: 28px 16px; text-align: center; cursor: pointer; background: var(--card); transition: border-color .15s, background .15s; }
+  .drop:hover, .drop.over { border-color: var(--primary); background: var(--soft); }
+  .drop svg { color: var(--muted); }
+  .drop-title { font-weight: 500; margin: 9px 0 4px; }
+
+  .progress { height: 4px; background: var(--soft); border-radius: 4px; margin: 12px 0; overflow: hidden; }
+  .progress .bar { height: 100%; width: 0%; background: var(--primary); transition: width .15s; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 16px; }
+  .tile { position: relative; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden; background: var(--soft); cursor: pointer; border: 1px solid var(--border); }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; font-size: 11px; color: #fff; background: rgba(0,0,0,.55); opacity: 0; transition: opacity .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile:hover .cap { opacity: 1; }
+  .tile .kill { position: absolute; top: 6px; right: 6px; width: 23px; height: 23px; border-radius: 50%; border: none; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; font-size: 14px; line-height: 1; display: none; align-items: center; justify-content: center; }
+  .tile:hover .kill { display: flex; }
+  .tile .kill:hover { background: var(--error); }
+
+  .empty { text-align: center; padding: 36px 0 22px; }
+  .empty-title { font-weight: 500; margin-bottom: 4px; }
+
+  .viewer { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 16px; }
+  .viewer-top { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .v-name { font-weight: 500; word-break: break-all; }
+  .v-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .v-stage { background: var(--soft); border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 160px; }
+  .v-stage img { max-width: 100%; max-height: 460px; display: block; border-radius: 6px; }
+
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--soft); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-size: 13px; z-index: 50; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div>
+      <h1>Meri photo gallery</h1>
+      <div class="sub" id="stats">Abhi koi photo nahi hai</div>
+    </div>
+    <div class="head-right">
+      <input id="search" class="inp" type="search" placeholder="Naam se dhoondein">
+      <select id="sort" class="inp">
+        <option value="new">Nayi pehle</option>
+        <option value="old">Purani pehle</option>
+        <option value="name">Naam (A-Z)</option>
+      </select>
+      <button class="btn primary" id="pickBtn">+ Upload karein</button>
+      <input type="file" id="fileInput" accept="image/*" multiple hidden>
+    </div>
+  </header>
+
+  <div class="drop" id="drop">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v13"/>
+    </svg>
+    <div class="drop-title">Photos yahan drag &amp; drop karein</div>
+    <div class="muted small">ya click karke apne device se chunein &middot; JPG, PNG, GIF, WebP</div>
+  </div>
+
+  <div class="progress" id="progressWrap" hidden><div class="bar" id="progressBar"></div></div>
+
+  <section class="viewer" id="viewer" hidden>
+    <div class="viewer-top">
+      <div>
+        <div class="v-name" id="vName"></div>
+        <div class="muted small" id="vInfo"></div>
+      </div>
+      <div class="v-actions">
+        <button class="btn ghost" id="vPrev">&#8249;</button>
+        <button class="btn ghost" id="vNext">&#8250;</button>
+        <button class="btn ghost" id="vDown">Download</button>
+        <button class="btn danger" id="vDel">Delete</button>
+        <button class="btn ghost" id="vClose">Band karein</button>
+      </div>
+    </div>
+    <div class="v-stage"><img id="vImg" alt=""></div>
+  </section>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="empty" id="empty">
+    <div class="empty-title">Gallery khali hai</div>
+    <div class="muted small">Upar wale box se apni pehli photo upload karein</div>
+  </div>
+
+  <footer class="foot">
+    <div class="muted small" id="footStats"></div>
+    <button class="btn ghost small-btn" id="clearAll">Sab delete karein</button>
+  </footer>
+
+  <div class="toast" id="toast" hidden></div>
+</div>
+
+<script>
+(function () {
+  var DB_NAME = 'venice_gallery_db';
+  var STORE = 'photos';
+  var db = null, photos = [], urls = {}, state = { q: '', sort: 'new', active: -1 };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var grid = $('grid'), empty = $('empty'), viewer = $('viewer'), vImg = $('vImg');
+
+  function openDB() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = function () {
+        var d = req.result;
+        if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath: 'id' });
+      };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+  function store(mode) { return db.transaction(STORE, mode).objectStore(STORE); }
+  function reqP(r) { return new Promise(function (res, rej) { r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); }; }); }
+  function getAll() { return reqP(store('readonly').getAll()).then(function (r) { return r || []; }); }
+  function putRec(rec) { return reqP(store('readwrite').put(rec)); }
+  function delRec(id) { return reqP(store('readwrite').delete(id)); }
+  function clearRecs() { return reqP(store('readwrite').clear()); }
+  function uid() { return (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2)); }
+
+  function fmtBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(2) + ' MB';
+  }
+  function fmtDate(ts) {
+    return new Date(ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  var toastTimer;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+
+  function visible() {
+    var list = photos.slice(), q = state.q.trim().toLowerCase();
+    if (q) list = list.filter(function (p) { return p.name.toLowerCase().indexOf(q) !== -1; });
+    if (state.sort === 'new') list.sort(function (a, b) { return b.date - a.date; });
+    else if (state.sort === 'old') list.sort(function (a, b) { return a.date - b.date; });
+    else list.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    return list;
+  }
+
+  function updateStats() {
+    var total = photos.reduce(function (s, p) { return s + p.size; }, 0);
+    $('stats').textContent = photos.length ? photos.length + ' photos \u00b7 ' + fmtBytes(total) : 'Abhi koi photo nahi hai';
+    $('footStats').textContent = photos.length ? photos.length + ' photos save hain \u00b7 ' + fmtBytes(total) + ' total' : 'Kuch bhi save nahi hai';
+  }
+
+  function render() {
+    var list = visible();
+    grid.innerHTML = '';
+    empty.hidden = list.length > 0;
+    list.forEach(function (p) {
+      var tile = document.createElement('div');
+      tile.className = 'tile';
+      var img = document.createElement('img');
+      img.src = urls[p.id];
+      img.alt = p.name;
+      img.loading = 'lazy';
+      var cap = document.createElement('div');
+      cap.className = 'cap';
+      cap.textContent = p.name;
+      var kill = document.createElement('button');
+      kill.className = 'kill';
+      kill.textContent = '\u00d7';
+      kill.title = 'Delete';
+      kill.onclick = function (e) { e.stopPropagation(); removePhoto(p.id); };
+      tile.appendChild(img); tile.appendChild(cap); tile.appendChild(kill);
+      tile.onclick = function () { openViewer(p.id); };
+      grid.appendChild(tile);
+    });
+    updateStats();
+  }
+
+  function openViewer(id) {
+    var list = visible();
+    state.active = list.findIndex(function (p) { return p.id === id; });
+    if (state.active < 0) return;
+    var p = list[state.active];
+    vImg.src = urls[p.id];
+    vImg.alt = p.name;
+    $('vName').textContent = p.name;
+    $('vInfo').textContent = fmtBytes(p.size) + ' \u00b7 ' + fmtDate(p.date) + ' \u00b7 ' + (state.active + 1) + '/' + list.length;
+    viewer.hidden = false;
+    viewer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function closeViewer() { viewer.hidden = true; state.active = -1; vImg.src = ''; }
+  function step(dir) {
+    var list = visible();
+    if (!list.length) return;
+    state.active = (state.active + dir + list.length) % list.length;
+    openViewer(list[state.active].id);
+  }
+
+  function addFiles(files) {
+    var arr = Array.prototype.filter.call(files, function (f) { return f.type.indexOf('image/') === 0; });
+    if (!arr.length) { toast('Sirf image files chalengi'); return; }
+    $('progressWrap').hidden = false;
+    var done = 0;
+    var chain = Promise.resolve();
+    arr.forEach(function (f) {
+      chain = chain.then(function () {
+        return putRec({ id: uid(), name: f.name, type: f.type, size: f.size, date: Date.now(), blob: f });
+      }).then(function () {
+        done++;
+        $('progressBar').style.width = Math.round((done / arr.length) * 100) + '%';
+      });
+    });
+    chain.then(function () {
+      setTimeout(function () { $('progressWrap').hidden = true; $('progressBar').style.width = '0%'; }, 350);
+      return load();
+    }).then(function () { toast(arr.length + ' photo upload ho gayi'); });
+  }
+
+  function removePhoto(id) {
+    var rec = photos.filter(function (p) { return p.id === id; })[0];
+    if (rec && !confirm('"' + rec.name + '" delete karein?')) return;
+    delRec(id).then(function () {
+      if (urls[id]) { URL.revokeObjectURL(urls[id]); delete urls[id]; }
+      if (!viewer.hidden) closeViewer();
+      return load();
+    }).then(function () { toast('Photo delete ho gayi'); });
+  }
+
+  function load() {
+    return getAll().then(function (list) {
+      photos = list;
+      Object.keys(urls).forEach(function (k) {
+        var still = photos.some(function (p) { return p.id === k; });
+        if (!still) { URL.revokeObjectURL(urls[k]); delete urls[k]; }
+      });
+      photos.forEach(function (p) { if (!urls[p.id]) urls[p.id] = URL.createObjectURL(p.blob); });
+      render();
+    });
+  }
+
+  $('pickBtn').onclick = function () { $('fileInput').click(); };
+  $('drop').onclick = function () { $('fileInput').click(); };
+  $('fileInput').onchange = function (e) { addFiles(e.target.files); e.target.value = ''; };
+
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files); });
+  document.addEventListener('paste', function (e) { if (e.clipboardData && e.clipboardData.files.length) addFiles(e.clipboardData.files); });
+
+  $('search').oninput = function (e) { state.q = e.target.value; render(); };
+  $('sort').onchange = function (e) { state.sort = e.target.value; render(); };
+  $('vClose').onclick = closeViewer;
+  $('vPrev').onclick = function () { step(-1); };
+  $('vNext').onclick = function () { step(1); };
+  $('vDel').onclick = function () { var list = visible(); if (list[state.active]) removePhoto(list[state.active].id); };
+  $('vDown').onclick = function () {
+    var list = visible(), p = list[state.active];
+    if (!p) return;
+    var a = document.createElement('a');
+    a.href = urls[p.id];
+    a.download = p.name;
+    a.click();
+  };
+  $('clearAll').onclick = function () {
+    if (!photos.length) { toast('Gallery already khali hai'); return; }
+    if (!confirm('Saari ' + photos.length + ' photos delete karein?')) return;
+    clearRecs().then(function () {
+      Object.keys(urls).forEach(function (k) { URL.revokeObjectURL(urls[k]); });
+      urls = {};
+      closeViewer();
+      return load();
+    }).then(function () { toast('Gallery khali kar di'); });
+  };
+  document.addEventListener('keydown', function (e) {
+    if (viewer.hidden) return;
+    if (e.key === 'Escape') closeViewer();
+    if (e.key === 'ArrowLeft') step(-1);
+    if (e.key === 'ArrowRight') step(1);
+  });
+
+  openDB().then(function (d) { db = d; return load(); }).catch(function () {
+    $('stats').textContent = 'Storage available nahi hai';
+  });
+})();
+</script>
+</body>
+</html>
